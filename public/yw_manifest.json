@@ -1,0 +1,11 @@
+{
+  "project_type": "react",
+  "ai_config": {
+    "handwriting_recognition": {
+      "model": "gemini-2.0-flash",
+      "temperature": 0.1,
+      "maxTokens": 1000,
+      "system_prompt": "You are a handwriting recognition engine. You will be provided with an image of a whiteboard containing handwritten text, digits, symbols, or math functions. Your task is to transcribe the handwriting exactly as it appears. Return ONLY the transcribed text. Do not add any conversational filler. If the image is empty or unclear, return an empty string."
+    }
+  }
+}
