@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { generateText } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
+
+const GEMINI_API_KEY = 'AIzaSyC_GyqT91Da-obCIc5Jhe3eUyBwsCBHerc';
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+const SYSTEM_PROMPT = "You are a handwriting recognition engine. You will be provided with an image of a whiteboard containing handwritten text, digits, symbols, or math functions. Your task is to transcribe the handwriting exactly as it appears. Return ONLY the transcribed text. Do not add any conversational filler. If the image is empty or unclear, return an empty string.";
 
 export function useHandwritingRecognition() {
   const [isRecognizing, setIsRecognizing] = useState(false);
@@ -12,35 +15,44 @@ export function useHandwritingRecognition() {
     setError(null);
 
     try {
-      // @ts-ignore
-      const config = globalThis.ywConfig?.ai_config?.handwriting_recognition;
-      if (!config) {
-        throw new Error('AI configuration not found. Please check yw_manifest.json');
+      // Extract base64 data from data URL
+      const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+
+      const response = await fetch(GEMINI_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: SYSTEM_PROMPT + "\n\nTranscribe this handwriting:"
+                },
+                {
+                  inlineData: {
+                    mimeType: 'image/png',
+                    data: base64Data
+                  }
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 1000,
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'API request failed');
       }
 
-      const openai = createOpenAI({
-        baseURL: 'https://api.youware.com/public/v1/ai',
-        apiKey: 'sk-YOUWARE',
-      });
-
-      const { text } = await generateText({
-        model: openai(config.model),
-        messages: [
-          {
-            role: 'system',
-            content: config.system_prompt,
-          },
-          {
-            role: 'user',
-            content: [
-              { type: 'image', image: imageBase64 },
-              { type: 'text', text: "Transcribe this handwriting." }
-            ],
-          },
-        ],
-        temperature: config.temperature,
-        maxTokens: config.maxTokens,
-      });
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
       setRecognizedText(text);
       return text;
